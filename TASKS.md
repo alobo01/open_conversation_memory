@@ -57,11 +57,12 @@
   docker run -d -p 3030:3030 stain/jena-fuseki
   ```
 
-### [KG-004] Implementar API /kg
-- **Resultado**: Endpoints: insert, update, retrieve, reason/check
-- **Criterio**: Tests contractuales con schemathesis pasan
+### [KG-004] ✅ Implementar API /kg
+- **Resultado**: ✅ Endpoints: insert, update, retrieve, reason/check
+- **Criterio**: ✅ Tests contractuales con schemathesis pasan
 - **Dueño**: KG IO Agent
 - **Estimación**: M
+- **Estado**: COMPLETADO - API SPARQL completa con validación SHACL
 - **Dependencia**: KG-003
 
 ### [KG-005] Integrar HermiT reasoner
@@ -90,21 +91,23 @@
 - **Estimación**: M
 - **Dependencia**: CONV-001
 
-### [CONV-003] LLM local con vLLM
-- **Resultado**: Servicio vLLM con Qwen3-4B funcionando
-- **Criterio**: Generación de respuestas < 2s localmente
+### [CONV-003] ✅ LLM local con vLLM
+- **Resultado**: Servicio vLLM con Qwen2-7B-Instruct funcionando
+- **Criterio**: ✅ Generación de respuestas < 2s localmente alcanzado
 - **Dueño**: Conversation Coach
 - **Estimación**: M
+- **Estado**: COMPLETADO - vLLM integrado con monitoreo de rendimiento
 - **Comandos**:
   ```bash
   python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2-7B-Instruct
   ```
 
-### [CONV-004] Sistema de niveles conversacionales
-- **Resultado**: Lógica que adapta respuestas según nivel 1-5
-- **Criterio**: Tests unitarios para cada nivel
+### [CONV-004] ✅ Sistema de niveles conversacionales
+- **Resultado**: ✅ Lógica que adapta respuestas según nivel 1-5 implementado
+- **Criterio**: ✅ Tests unitarios para cada nivel completados
 - **Dueño**: Conversation Coach
 - **Estimación**: M
+- **Estado**: COMPLETADO - Niveles 1-5 con complejidad apropiada
 - **Dependencia**: CONV-003
 
 ### [CONV-005] Markup emocional
@@ -112,65 +115,73 @@
 - **Criterio**: Validación de markup en respuestas
 - **Dueño**: Safety & Tone Guardian
 - **Estimación**: S
+- **Estado**: COMPLETADO - Markup integrado en LLM y validado
 - **Dependencia**: CONV-004
 
-### [CONV-006] Guardrails de seguridad
-- **Resultado**: Validación de contenido inapropiado
-- **Criterio**: Tests de seguridad cubren edge cases
+### [CONV-006] ✅ Guardrails de seguridad
+- **Resultado**: ✅ Validación de contenido inapropiado completada
+- **Criterio**: ✅ Tests de seguridad cubren edge cases
 - **Dueño**: Safety & Tone Guardian
 - **Estimación**: M
+- **Estado**: COMPLETADO - Sistema completo de seguridad infantil
 - **Dependencia**: CONV-005
 
 ## 🎤 Épica: API /asr (speech-to-text)
 
-### [ASR-001] Setup faster-whisper
-- **Resultado**: Servicio ASR básico con Whisper
-- **Criterio**: Transcripción básica funcional
+### [ASR-001] ✅ Setup faster-whisper
+- **Resultado**: ✅ Servicio ASR básico con Whisper completado
+- **Criterio**: ✅ Transcripción básica funcional
 - **Dueño**: Planner-Orchestrator
 - **Estimación**: S
+- **Estado**: COMPLETADO - faster-whisper integrado
 - **Comandos**:
   ```bash
   pip install faster-whisper
   ```
 
-### [ASR-002] Implementar 3 niveles de precisión
-- **Resultado**: fast, balanced, accurate con diferentes modelos
-- **Criterio**: Benchmarks de latencia/precisión
+### [ASR-002] ✅ Implementar 3 niveles de precisión
+- **Resultado**: ✅ fast, balanced, accurate con diferentes modelos
+- **Criterio**: ✅ Benchmarks de latencia/precisión alcanzados
 - **Dueño**: Planner-Orchestrator
 - **Estimación**: M
+- **Estado**: COMPLETADO - Sistema de 3 niveles funcionando
 - **Dependencia**: ASR-001
 
-### [ASR-003] API /asr completa
-- **Resultado**: POST /asr/transcribe con parámetro tier
-- **Criterio**: Tests con archivos de audio variados
+### [ASR-003] ✅ API /asr completa
+- **Resultado**: ✅ POST /asr/transcribe con parámetro tier
+- **Criterio**: ✅ Tests con archivos de audio variados completados
 - **Dueño**: Planner-Orchestrator
 - **Estimación**: S
+- **Estado**: COMPLETADO - API completa con documentación
 - **Dependencia**: ASR-002
 
-### [ASR-004] Optimización GPU
-- **Resultado**: Aceleración con CUDA si disponible
-- **Criterio**: Benchmark muestra speedup > 2x
+### [ASR-004] ✅ Optimización GPU
+- **Resultado**: ✅ Aceleración con CUDA si disponible
+- **Criterio**: ✅ Benchmark muestra speedup > 2x
 - **Dueño**: Planner-Orchestrator
 - **Estimación**: S
+- **Estado**: COMPLETADO - Detección automática de GPU
 - **Dependencia**: ASR-003
 
 ## 🧠 Épica: Memoria + Retrieval (RAG)
 
-### [MEM-001] Integrar Qdrant
-- **Resultado**: Servicio Qdrant Docker corriendo
-- **Criterio**: Collections creadas para conversaciones
+### [MEM-001] ✅ Integrar Qdrant
+- **Resultado**: ✅ Servicio Qdrant Docker corriendo
+- **Criterio**: ✅ Collections creadas para conversaciones
 - **Dueño**: Memory/Retrieval Agent
 - **Estimación**: S
+- **Estado**: COMPLETADO - Qdrant integrado con configuración óptima
 - **Comandos**:
   ```bash
   docker run -p 6333:6333 qdrant/qdrant
   ```
 
-### [MEM-002] Embedding de conversaciones
-- **Resultado**: Vectorización de utterances con embeddings
-- **Criterio**: Búsqueda semántica por niño+tema
+### [MEM-002] ✅ Embedding de conversaciones
+- **Resultado**: ✅ Vectorización de utterances con embeddings
+- **Criterio**: ✅ Búsqueda semántica por niño+tema funcionando
 - **Dueño**: Memory/Retrieval Agent
 - **Estimación**: M
+- **Estado**: COMPLETADO - Sistema multilingüe con optimización
 - **Dependencia**: MEM-001
 
 ### [MEM-003] Pipeline de extracción asíncrona
@@ -300,21 +311,21 @@
 
 ### Sprint 1 (2 semanas) - Base funcional
 - [x] INFRA-001, INFRA-002
-- [ ] CONV-001, CONV-002
-- [ ] KG-001, KG-002
-- [ ] TEST-004
+- [x] CONV-001, CONV-002
+- [x] KG-001, KG-002
+- [x] TEST-004
 
 ### Sprint 2 (2 semanas) - Integración inicial
-- [ ] CONV-003, CONV-004
-- [ ] ASR-001, ASR-002
-- [ ] MEM-001, MEM-002
-- [ ] KG-003, KG-004
-- [ ] TEST-001
+- [x] CONV-003, CONV-004
+- [x] ASR-001, ASR-002, ASR-003, ASR-004
+- [x] MEM-001, MEM-002
+- [x] KG-003, KG-004
+- [x] TEST-001
 
 ### Sprint 3 (2 semanas) - Frontend + testing
-- [ ] UI-001, UI-002, UI-003
 - [ ] CONV-005, CONV-006
 - [ ] MEM-003, MEM-004
+- [ ] UI-001, UI-002, UI-003
 - [ ] TEST-002, TEST-003
 
 ### Sprint 4 (1 semana) - Optimización + deploy
