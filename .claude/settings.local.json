@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "WebSearch",
+      "WebFetch(domain:docs.docker.com)",
+      "WebFetch(domain:docs.qdrant.tech)",
+      "Bash(xargs:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "WebFetch(domain:12factor.net)",
+      "WebFetch(domain:docker.com)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "name": "asr-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Automatic Speech Recognition operations",
+  "server": {
+    "command": "python",
+    "args": ["-m", "mcp_asr.server"],
+    "env": {
+      "ASR_SERVICE_URL": "http://localhost:8001",
+      "WHISPER_MODEL_PATH": "/app/models"
+    }
+  },
+  "tools": [
+    {
+      "name": "transcribe_audio",
+      "description": "Transcribe audio file to text",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "audio_file": {
+            "type": "string",
+            "description": "Path to audio file"
+          },
+          "tier": {
+            "type": "string",
+            "enum": ["fast", "balanced", "accurate"],
+            "description": "Accuracy tier",
+            "default": "balanced"
+          },
+          "language": {
+            "type": "string",
+            "description": "Language code (es, en)",
+            "default": "es"
+          }
+        },
+        "required": ["audio_file"]
+      }
+    },
+    {
+      "name": "get_supported_formats",
+      "description": "Get supported audio formats",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "validate_audio_file",
+      "description": "Validate audio file before transcription",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "audio_file": {
+            "type": "string",
+            "description": "Path to audio file"
+          }
+        },
+        "required": ["audio_file"]
+      }
+    },
+    {
+      "name": "get_transcription_metadata",
+      "description": "Get metadata about transcription process",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "transcription_id": {
+            "type": "string",
+            "description": "Transcription ID"
+          }
+        },
+        "required": ["transcription_id"]
+      }
+    },
+    {
+      "name": "configure_asr_settings",
+      "description": "Configure ASR service settings",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "default_tier": {
+            "type": "string",
+            "enum": ["fast", "balanced", "accurate"],
+            "description": "Default accuracy tier"
+          },
+          "default_language": {
+            "type": "string",
+            "description": "Default language"
+          },
+          "enable_gpu": {
+            "type": "boolean",
+            "description": "Enable GPU acceleration"
+          }
+        }
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "asr://service",
+      "name": "ASR Service",
+      "description": "Main speech recognition service"
+    },
+    {
+      "uri": "asr://models",
+      "name": "ASR Models",
+      "description": "Available ASR models and configurations"
+    }
+  ]
+}

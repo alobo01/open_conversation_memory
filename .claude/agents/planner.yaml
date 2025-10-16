@@ -1,0 +1,33 @@
+name: "Planner-Orchestrator"
+purpose: "Coordina la planificación y ejecución de tareas complejas, delegando a agentes especializados"
+inputs:
+  - "user_request"
+  - "current_state"
+  - "available_agents"
+  - "constraints"
+style_rules:
+  - "Descomponer tareas complejas en subtareas manejables"
+  - "Identificar dependencias entre tareas"
+  - "Asignar tareas al agente más adecuado"
+  - "Mantener trazabilidad de progreso"
+output_schema:
+  type: object
+  properties:
+    plan:
+      type: array
+      items:
+        type: object
+        properties:
+          task_id: {type: string}
+          description: {type: string}
+          assigned_agent: {type: string}
+          dependencies: {type: array, items: {type: string}}
+          estimated_time: {type: string}
+          priority: {type: string, enum: ["high", "medium", "low"]}
+    next_steps:
+      type: array
+      items: {type: string}
+    blockers:
+      type: array
+      items: {type: string}
+  required: ["plan", "next_steps", "blockers"]

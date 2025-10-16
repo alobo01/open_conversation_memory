@@ -1,0 +1,180 @@
+{
+  "conversation_functions": {
+    "start_conversation": {
+      "type": "function",
+      "description": "Iniciar nueva conversación con un niño",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "child_id": {
+            "type": "string",
+            "description": "ID del perfil del niño"
+          },
+          "topic": {
+            "type": "string",
+            "enum": ["school", "hobbies", "holidays", "food", "friends"],
+            "description": "Tema de conversación"
+          },
+          "level": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Nivel conversacional del niño"
+          }
+        },
+        "required": ["child_id", "topic", "level"]
+      }
+    },
+    "continue_conversation": {
+      "type": "function",
+      "description": "Continuar conversación existente",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "ID de la conversación"
+          },
+          "user_input": {
+            "type": "string",
+            "description": "Texto o transcripción del niño"
+          },
+          "end_conversation": {
+            "type": "boolean",
+            "description": "Indica si se debe terminar la conversación",
+            "default": false
+          }
+        },
+        "required": ["conversation_id", "user_input"]
+      }
+    }
+  },
+  "kg_functions": {
+    "extract_triples": {
+      "type": "function",
+      "description": "Extraer triples RDF de conversación",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversation_text": {
+            "type": "string",
+            "description": "Texto completo de la conversación"
+          },
+          "child_id": {
+            "type": "string",
+            "description": "ID del niño"
+          },
+          "confidence_threshold": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0,
+            "default": 0.7,
+            "description": "Umbral de confianza para extracción"
+          }
+        },
+        "required": ["conversation_text", "child_id"]
+      }
+    },
+    "validate_constraints": {
+      "type": "function",
+      "description": "Validar datos contra constraints SHACL",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "data_graph": {
+            "type": "string",
+            "description": "Grafo de datos a validar"
+          },
+          "shapes_graph": {
+            "type": "string",
+            "description": "Grafo de formas SHACL"
+          }
+        },
+        "required": ["data_graph", "shapes_graph"]
+      }
+    }
+  },
+  "asr_functions": {
+    "transcribe_audio": {
+      "type": "function",
+      "description": "Transcribir audio a texto",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "audio_path": {
+            "type": "string",
+            "description": "Ruta al archivo de audio"
+          },
+          "accuracy_tier": {
+            "type": "string",
+            "enum": ["fast", "balanced", "accurate"],
+            "default": "balanced",
+            "description": "Nivel de precisión"
+          },
+          "language": {
+            "type": "string",
+            "enum": ["es", "en"],
+            "default": "es",
+            "description": "Idioma del audio"
+          }
+        },
+        "required": ["audio_path"]
+      }
+    }
+  },
+  "memory_functions": {
+    "search_contextual": {
+      "type": "function",
+      "description": "Buscar memoria contextual para conversación",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "child_id": {
+            "type": "string",
+            "description": "ID del niño"
+          },
+          "current_topic": {
+            "type": "string",
+            "description": "Tema actual de conversación"
+          },
+          "query_text": {
+            "type": "string",
+            "description": "Texto de consulta para búsqueda semántica"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 5,
+            "description": "Número máximo de resultados"
+          }
+        },
+        "required": ["child_id", "query_text"]
+      }
+    },
+    "store_memory": {
+      "type": "function",
+      "description": "Almacenar memoria conversacional",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "ID de la conversación"
+          },
+          "child_id": {
+            "type": "string",
+            "description": "ID del niño"
+          },
+          "content": {
+            "type": "string",
+            "description": "Contenido a almacenar"
+          },
+          "metadata": {
+            "type": "object",
+            "description": "Metadatos adicionales"
+          }
+        },
+        "required": ["conversation_id", "child_id", "content"]
+      }
+    }
+  }
+}

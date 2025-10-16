@@ -1,0 +1,108 @@
+name: "Conversation Pipeline Workflow"
+description: "Pipeline completo para procesamiento de conversaciones"
+version: "1.0"
+
+triggers:
+  - "new_conversation_start"
+  - "conversation_turn_received"
+  - "conversation_end"
+
+steps:
+  - name: "validate_input"
+    agent: "safety_tone"
+    description: "Validar entrada de usuario"
+    inputs:
+      - "user_input"
+      - "child_profile"
+      - "conversation_context"
+    outputs:
+      - "validated_input"
+      - "safety_status"
+
+  - name: "retrieve_memory"
+    agent: "memory_rag"
+    description: "Recuperar contexto relevante de memoria"
+    inputs:
+      - "child_id"
+      - "current_topic"
+      - "validated_input"
+    outputs:
+      - "contextual_memories"
+      - "retrieval_insights"
+
+  - name: "generate_response"
+    agent: "convo_coach"
+    description: "Generar respuesta adaptada"
+    inputs:
+      - "validated_input"
+      - "contextual_memories"
+      - "child_profile"
+    outputs:
+      - "raw_response"
+      - "emotion_markup"
+
+  - name: "safety_check"
+    agent: "safety_tone"
+    description: "Validación final de seguridad y tono"
+    inputs:
+      - "raw_response"
+      - "child_profile"
+      - "safety_status"
+    outputs:
+      - "final_response"
+      - "safety_approval"
+
+  - name: "save_conversation"
+    agent: "kg_io"
+    description: "Guardar turno en MongoDB"
+    inputs:
+      - "conversation_id"
+      - "final_response"
+      - "validated_input"
+    outputs:
+      - "save_status"
+      - "conversation_data"
+
+  - name: "extract_kg"
+    agent: "kg_io"
+    description: "Extraer triples para Knowledge Graph"
+    inputs:
+      - "conversation_data"
+      - "extraction_context"
+    outputs:
+      - "extracted_triples"
+      - "extraction_confidence"
+
+  - name: "update_kg"
+    agent: "kg_io"
+    description: "Actualizar Knowledge Graph con validación SHACL"
+    inputs:
+      - "extracted_triples"
+      - "validation_required"
+    outputs:
+      - "kg_update_status"
+      - "validation_results"
+
+parallel_steps:
+  - name: "async_kg_processing"
+    description: "Procesamiento KG en background"
+    steps:
+      - "extract_kg"
+      - "update_kg"
+
+error_handling:
+  - "safety_failure": "block_and_notify"
+  - "kg_validation_error": "log_and_continue"
+  - "memory_retrieval_error": "fallback_to_basic"
+
+success_criteria:
+  - "response_generated_and_safe"
+  - "conversation_saved"
+  - "kg_processing_triggered"
+  - "latency_<2_seconds"
+
+monitoring:
+  - "response_generation_time"
+  - "safety_checks_passed"
+  - "kg_extraction_success_rate"
+  - "memory_retrieval_accuracy"

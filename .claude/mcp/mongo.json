@@ -1,0 +1,146 @@
+{
+  "name": "mongo-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for MongoDB operations",
+  "server": {
+    "command": "python",
+    "args": ["-m", "mcp_mongo.server"],
+    "env": {
+      "MONGODB_URI": "mongodb://localhost:27017",
+      "MONGODB_DATABASE": "emorobcare"
+    }
+  },
+  "tools": [
+    {
+      "name": "find_documents",
+      "description": "Find documents in a collection",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "filter": {
+            "type": "object",
+            "description": "MongoDB filter query"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum documents to return",
+            "default": 100
+          }
+        },
+        "required": ["collection"]
+      }
+    },
+    {
+      "name": "insert_document",
+      "description": "Insert a document into collection",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "document": {
+            "type": "object",
+            "description": "Document to insert"
+          }
+        },
+        "required": ["collection", "document"]
+      }
+    },
+    {
+      "name": "update_document",
+      "description": "Update documents in collection",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection": {
+            "type": "string",
+            "description": "Collection name"
+          },
+          "filter": {
+            "type": "object",
+            "description": "Filter for documents to update"
+          },
+          "update": {
+            "type": "object",
+            "description": "Update operation"
+          }
+        },
+        "required": ["collection", "filter", "update"]
+      }
+    },
+    {
+      "name": "get_child_profile",
+      "description": "Get child profile by ID or name",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "child_identifier": {
+            "type": "string",
+            "description": "Child ID or name"
+          }
+        },
+        "required": ["child_identifier"]
+      }
+    },
+    {
+      "name": "save_conversation_turn",
+      "description": "Save a conversation turn",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "Conversation ID"
+          },
+          "turn_data": {
+            "type": "object",
+            "description": "Turn data including text, emotion, timestamp"
+          }
+        },
+        "required": ["conversation_id", "turn_data"]
+      }
+    },
+    {
+      "name": "get_conversation_history",
+      "description": "Get conversation history for a child",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "child_id": {
+            "type": "string",
+            "description": "Child ID"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum conversations to return",
+            "default": 10
+          }
+        },
+        "required": ["child_id"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "mongo://children",
+      "name": "Children Collection",
+      "description": "Child profiles and preferences"
+    },
+    {
+      "uri": "mongo://conversations",
+      "name": "Conversations Collection",
+      "description": "Conversation logs and metadata"
+    },
+    {
+      "uri": "mongo://messages",
+      "name": "Messages Collection",
+      "description": "Individual conversation turns"
+    }
+  ]
+}

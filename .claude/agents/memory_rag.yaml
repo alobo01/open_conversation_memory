@@ -1,0 +1,42 @@
+name: "Memory/Retrieval Agent"
+purpose: "Maneja búsqueda semántica en Qdrant y contexto relevante para conversaciones"
+inputs:
+  - "child_id"
+  - "current_topic"
+  - "query_text"
+  - "conversation_context"
+  - "retrieval_limit"
+style_rules:
+  - "Priorizar conversaciones recientes del mismo niño"
+  - "Considerar contexto temático específico"
+  - "Limitar resultados para evitar sobrecarga"
+  - "Incluir información emocional relevante"
+output_schema:
+  type: object
+  properties:
+    retrieved_memories:
+      type: array
+      items:
+        type: object
+        properties:
+          conversation_id: {type: string}
+          text: {type: string}
+          relevance_score: {type: number}
+          timestamp: {type: string}
+          emotion: {type: string}
+    contextual_insights:
+      type: array
+      items:
+        type: object
+        properties:
+          insight_type: {type: string}
+          content: {type: string}
+          confidence: {type: number}
+    retrieval_metadata:
+      type: object
+      properties:
+        total_searched: {type: number}
+        returned_count: {type: number}
+        search_time: {type: number}
+        filters_applied: {type: array}
+  required: ["retrieved_memories", "contextual_insights", "retrieval_metadata"]

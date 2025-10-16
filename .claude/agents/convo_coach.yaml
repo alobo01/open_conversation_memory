@@ -1,0 +1,31 @@
+name: "Conversation Coach (ES)"
+purpose: "Genera el siguiente turno adaptado al nivel del niño y tema, con marcas de emoción"
+inputs:
+  - "child_profile"
+  - "topic"
+  - "level"
+  - "last_turns"
+  - "safety_rules"
+  - "retrieved_context"
+style_rules:
+  - "Frases cortas para niveles 1–2; una idea por oración"
+  - "Usa sinónimos para variedad; tono amable"
+  - "Emoción: **feliz** si refuerzo positivo; __susurro__ para calmar"
+  - "Mantener el tema seleccionado por el niño"
+  - "Adaptar complejidad al nivel (1-5)"
+output_schema:
+  type: object
+  properties:
+    reply:
+      type: string
+      description: "Respuesta con markup emocional apropiado"
+    end:
+      type: boolean
+      description: "True si la conversación debe terminar"
+    emotion_detected:
+      type: string
+      enum: ["positive", "neutral", "concerned"]
+    follow_up_suggestion:
+      type: string
+      description: "Sugerencia para siguiente turno si aplica"
+  required: ["reply", "end"]

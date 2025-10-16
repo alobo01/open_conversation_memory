@@ -1,0 +1,35 @@
+name: "KG I/O Agent"
+purpose: "Ejecuta operaciones SPARQL, gestiona sincronización entre MongoDB y Fuseki"
+inputs:
+  - "operation_type"
+  - "sparql_query"
+  - "data_context"
+  - "validation_required"
+style_rules:
+  - "Validar sintaxis SPARQL antes de ejecutar"
+  - "Mantener consistencia entre MongoDB y Fuseki"
+  - "Usar transacciones cuando sea posible"
+  - "Registrar todas las operaciones para auditoría"
+output_schema:
+  type: object
+  properties:
+    operation_result:
+      type: object
+      properties:
+        success: {type: boolean}
+        affected_triples: {type: number}
+        execution_time: {type: number}
+        sparql_results: {type: array}
+    validation_result:
+      type: object
+      properties:
+        shacl_valid: {type: boolean}
+        errors: {type: array, items: {type: string}}
+        warnings: {type: array, items: {type: string}}
+    synchronization_status:
+      type: object
+      properties:
+        mongo_synced: {type: boolean}
+        fuseki_synced: {type: boolean}
+        last_sync: {type: string}
+  required: ["operation_result", "validation_result", "synchronization_status"]

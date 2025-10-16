@@ -1,0 +1,152 @@
+version: '3.8'
+
+services:
+  # Databases
+  mongodb:
+    image: mongo:7
+    container_name: emorobcare-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: emorobcare
+    restart: unless-stopped
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: emorobcare-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  fuseki:
+    image: stain/jena-fuseki:latest
+    container_name: emorobcare-fuseki
+    ports:
+      - "3030:3030"
+    volumes:
+      - fuseki_data:/fuseki
+    environment:
+      FUSEKI_BASEDATASET: /fuseki/databases/emorobcare
+    command: ["--update", "--mem", "/datasets"]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3030/$$/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Application Services
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+    container_name: emorobcare-api
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URI: mongodb://mongodb:27017
+      QDRANT_URL: http://qdrant:6333
+      FUSEKI_URL: http://fuseki:3030
+      OFFLINE_MODE: "true"
+      DEFAULT_LANG: "es"
+      ASR_GPU: "false"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      fuseki:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  asr:
+    build:
+      context: .
+      dockerfile: services/asr/Dockerfile
+    container_name: emorobcare-asr
+    ports:
+      - "8001:8001"
+    environment:
+      DEFAULT_LANGUAGE: "es"
+      GPU_ENABLED: "false"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  frontend:
+    build:
+      context: .
+      dockerfile: services/frontend/Dockerfile
+    container_name: emorobcare-frontend
+    ports:
+      - "81:80"
+    environment:
+      API_URL: http://localhost:8000
+      ASR_URL: http://localhost:8001
+    depends_on:
+      api:
+        condition: service_healthy
+      asr:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Knowledge Graph Service
+  fuseki-job:
+    build:
+      context: .
+      dockerfile: services/fuseki-job/Dockerfile
+    container_name: emorobcare-fuseki-job
+    environment:
+      FUSEKI_URL: http://fuseki:3030
+      DATASET: emorobcare
+    depends_on:
+      fuseki:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/app/scripts
+    restart: "no"
+    command: ["--action", "init"]
+
+volumes:
+  mongodb_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  fuseki_data:
+    driver: local
+
+networks:
+  default:
+    name: emorobcare-network
+    driver: bridge

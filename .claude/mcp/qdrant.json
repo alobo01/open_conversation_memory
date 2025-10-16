@@ -1,0 +1,164 @@
+{
+  "name": "qdrant-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Qdrant vector operations",
+  "server": {
+    "command": "python",
+    "args": ["-m", "mcp_qdrant.server"],
+    "env": {
+      "QDRANT_URL": "http://localhost:6333",
+      "QDRANT_API_KEY": ""
+    }
+  },
+  "tools": [
+    {
+      "name": "create_collection",
+      "description": "Create a new collection for vector storage",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection_name": {
+            "type": "string",
+            "description": "Name of the collection"
+          },
+          "vector_size": {
+            "type": "number",
+            "description": "Dimension size of vectors",
+            "default": 384
+          },
+          "distance": {
+            "type": "string",
+            "enum": ["Cosine", "Euclid", "Dot"],
+            "description": "Distance metric",
+            "default": "Cosine"
+          }
+        },
+        "required": ["collection_name"]
+      }
+    },
+    {
+      "name": "search_similar",
+      "description": "Search for similar vectors",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection_name": {
+            "type": "string",
+            "description": "Collection to search in"
+          },
+          "query_vector": {
+            "type": "array",
+            "items": {"type": "number"},
+            "description": "Query vector"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum results",
+            "default": 10
+          },
+          "filter": {
+            "type": "object",
+            "description": "Filter conditions"
+          }
+        },
+        "required": ["collection_name", "query_vector"]
+      }
+    },
+    {
+      "name": "insert_points",
+      "description": "Insert vector points into collection",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "collection_name": {
+            "type": "string",
+            "description": "Target collection"
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {"type": "string"},
+                "vector": {"type": "array", "items": {"type": "number"}},
+                "payload": {"type": "object"}
+              },
+              "required": ["id", "vector"]
+            },
+            "description": "Points to insert"
+          }
+        },
+        "required": ["collection_name", "points"]
+      }
+    },
+    {
+      "name": "search_conversation_memories",
+      "description": "Search conversation memories by child and topic",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "child_id": {
+            "type": "string",
+            "description": "Child identifier"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Topic to search for"
+          },
+          "query_text": {
+            "type": "string",
+            "description": "Text query for semantic search"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum results",
+            "default": 5
+          }
+        },
+        "required": ["child_id"]
+      }
+    },
+    {
+      "name": "store_conversation_turn",
+      "description": "Store conversation turn with embeddings",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "Conversation ID"
+          },
+          "child_id": {
+            "type": "string",
+            "description": "Child ID"
+          },
+          "text": {
+            "type": "string",
+            "description": "Text content"
+          },
+          "topic": {
+            "type": "string",
+            "description": "Conversation topic"
+          },
+          "emotion": {
+            "type": "string",
+            "description": "Emotion label"
+          }
+        },
+        "required": ["conversation_id", "child_id", "text"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "qdrant://conversations",
+      "name": "Conversation Memories",
+      "description": "Vector storage for conversation retrieval"
+    },
+    {
+      "uri": "qdrant://topics",
+      "name": "Topic Embeddings",
+      "description": "Topic-based vector indices"
+    }
+  ]
+}

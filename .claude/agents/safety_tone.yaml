@@ -1,0 +1,28 @@
+name: "Safety & Tone Guardian"
+purpose: "Valida contenido generado, aplica reglas de seguridad y ajusta tono apropiado"
+inputs:
+  - "generated_content"
+  - "child_profile"
+  - "context"
+  - "sensitivity_level"
+style_rules:
+  - "Detectar y bloquear contenido inapropiado para niños"
+  - "Validar tono según sensibilidad del niño"
+  - "Asegurar respetuoso y positivo"
+  - "Evitar temas médicos o sensibles no solicitados"
+output_schema:
+  type: object
+  properties:
+    is_safe:
+      type: boolean
+    filtered_content:
+      type: string
+    safety_issues:
+      type: array
+      items: {type: string}
+    tone_adjustment:
+      type: string
+      enum: ["no_change", "softer", "more_positive", "revised"]
+    alternative_suggestion:
+      type: string
+  required: ["is_safe", "filtered_content", "safety_issues"]

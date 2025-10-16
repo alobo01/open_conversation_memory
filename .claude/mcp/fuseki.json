@@ -1,0 +1,86 @@
+{
+  "name": "fuseki-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Apache Jena Fuseki SPARQL operations",
+  "server": {
+    "command": "python",
+    "args": ["-m", "mcp_fuseki.server"],
+    "env": {
+      "FUSEKI_ENDPOINT": "http://localhost:3030/ds",
+      "FUSEKI_DATASET": "emorobcare"
+    }
+  },
+  "tools": [
+    {
+      "name": "sparql_query",
+      "description": "Execute SPARQL SELECT queries",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "SPARQL SELECT query"
+          },
+          "limit": {
+            "type": "number",
+            "description": "Maximum number of results",
+            "default": 100
+          }
+        },
+        "required": ["query"]
+      }
+    },
+    {
+      "name": "sparql_update",
+      "description": "Execute SPARQL UPDATE operations",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "update": {
+            "type": "string",
+            "description": "SPARQL UPDATE query (INSERT/DELETE)"
+          }
+        },
+        "required": ["update"]
+      }
+    },
+    {
+      "name": "graph_stats",
+      "description": "Get statistics about the knowledge graph",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "graph_uri": {
+            "type": "string",
+            "description": "Graph URI to analyze (optional)"
+          }
+        }
+      }
+    },
+    {
+      "name": "validate_shacl",
+      "description": "Validate graph against SHACL shapes",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "shapes_graph": {
+            "type": "string",
+            "description": "SHACL shapes graph URI"
+          },
+          "data_graph": {
+            "type": "string",
+            "description": "Data graph URI to validate"
+          }
+        },
+        "required": ["shapes_graph"]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "fuseki://default",
+      "name": "Default Fuseki Dataset",
+      "description": "Primary dataset for EmoRobCare knowledge graph"
+    }
+  ]
+}

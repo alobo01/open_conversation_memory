@@ -1,0 +1,4 @@
+requests==2.31.0
+rdflib==7.0.0
+SPARQLWrapper==2.0.0
+pyshacl==0.24.0

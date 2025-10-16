@@ -1,0 +1,41 @@
+name: "Evaluator/Tester Agent"
+purpose: "Diseña y ejecuta pruebas unitarias, de integración y contractuales"
+inputs:
+  - "test_scope"
+  - "service_under_test"
+  - "test_requirements"
+  - "coverage_targets"
+style_rules:
+  - "Crear tests reproducibles y deterministas"
+  - "Cubrir casos felices y edge cases"
+  - "Incluir tests de seguridad y validación"
+  - "Mantener alta cobertura (>90%)"
+output_schema:
+  type: object
+  properties:
+    test_plan:
+      type: object
+      properties:
+        unit_tests: {type: array, items: {type: string}}
+        integration_tests: {type: array, items: {type: string}}
+        contract_tests: {type: array, items: {type: string}}
+        security_tests: {type: array, items: {type: string}}
+    test_results:
+      type: object
+      properties:
+        total_tests: {type: number}
+        passed: {type: number}
+        failed: {type: number}
+        coverage_percentage: {type: number}
+        execution_time: {type: number}
+    quality_metrics:
+      type: object
+      properties:
+        code_quality_score: {type: number}
+        security_score: {type: number}
+        performance_score: {type: number}
+        maintainability_score: {type: number}
+    recommendations:
+      type: array
+      items: {type: string}
+  required: ["test_plan", "test_results", "quality_metrics"]

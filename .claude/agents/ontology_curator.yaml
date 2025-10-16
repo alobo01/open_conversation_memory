@@ -1,0 +1,36 @@
+name: "Ontology Curator"
+purpose: "Diseña y mantiene ontología OWL 2 DL + formas SHACL, valida consistencia"
+inputs:
+  - "domain_concepts"
+  - "existing_ontology"
+  - "validation_requirements"
+  - "use_cases"
+style_rules:
+  - "Usar IRIs consistentes con dominio https://iiia.csic.es/kg/"
+  - "Mantener modularidad: separar ontología de datos"
+  - "Crear shapes SHACL claras y validables"
+  - "Documentar cada clase y propiedad"
+output_schema:
+  type: object
+  properties:
+    ontology_updates:
+      type: object
+      properties:
+        new_classes: {type: array, items: {type: string}}
+        new_properties: {type: array, items: {type: string}}
+        updated_axioms: {type: array, items: {type: string}}
+    shacl_shapes:
+      type: array
+      items:
+        type: object
+        properties:
+          shape_name: {type: string}
+          target_class: {type: string}
+          constraints: {type: object}
+    consistency_status:
+      type: object
+      properties:
+        is_consistent: {type: boolean}
+        violations: {type: array, items: {type: string}}
+        recommendations: {type: array, items: {type: string}}
+  required: ["ontology_updates", "shacl_shapes", "consistency_status"]

@@ -1,0 +1,82 @@
+name: "Design and Scaffold Workflow"
+description: "Flujo completo de diseño → scaffolding → testing para nuevos componentes"
+version: "1.0"
+
+triggers:
+  - "new_feature_request"
+  - "architecture_change"
+  - "component_refactor"
+
+steps:
+  - name: "analyze_requirements"
+    agent: "planner"
+    description: "Analizar requerimientos y descomponer en tareas"
+    inputs:
+      - "user_request"
+      - "current_architecture"
+      - "constraints"
+    outputs:
+      - "requirements_analysis"
+      - "task_breakdown"
+
+  - name: "design_component"
+    agent: "ontology_curator"
+    description: "Diseñar estructura del componente/API"
+    inputs:
+      - "requirements_analysis"
+      - "existing_patterns"
+    outputs:
+      - "component_design"
+      - "api_specification"
+      - "data_model"
+
+  - name: "scaffold_code"
+    agent: "planner"
+    description: "Generar código base del componente"
+    inputs:
+      - "component_design"
+      - "api_specification"
+    outputs:
+      - "scaffolded_files"
+      - "initial_tests"
+
+  - name: "validate_design"
+    agent: "evaluator_tester"
+    description: "Validar diseño contra requisitos"
+    inputs:
+      - "component_design"
+      - "scaffolded_files"
+    outputs:
+      - "validation_report"
+      - "quality_metrics"
+
+  - name: "create_tests"
+    agent: "evaluator_tester"
+    description: "Crear suite de pruebas completa"
+    inputs:
+      - "scaffolded_files"
+      - "api_specification"
+    outputs:
+      - "test_suite"
+      - "coverage_plan"
+
+  - name: "final_review"
+    agent: "planner"
+    description: "Revisión final y recomendaciones"
+    inputs:
+      - "validation_report"
+      - "test_suite"
+    outputs:
+      - "implementation_plan"
+      - "next_steps"
+
+error_handling:
+  - "step_failure": "pause_for_review"
+  - "validation_errors": "return_to_design"
+  - "test_failures": "refactor_and_retry"
+
+success_criteria:
+  - "all_validation_checks_pass"
+  - "test_coverage_>=_90_percent"
+  - "api_spec_complete"
+  - "code_quality_standards_met"
