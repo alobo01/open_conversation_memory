@@ -8,7 +8,7 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from .routers import conversation, knowledge_graph, asr
+from .routers import conversation, knowledge_graph, asr, background_tasks
 from .services.llm_service import LLMService
 from .services.memory_service import MemoryService
 from .services.emotion_service import EmotionService
@@ -52,6 +52,7 @@ app.add_middleware(
 app.include_router(conversation.router, prefix="/conv", tags=["conversation"])
 app.include_router(knowledge_graph.router, prefix="/kg", tags=["knowledge-graph"])
 app.include_router(asr.router, prefix="/asr", tags=["asr"])
+app.include_router(background_tasks.router, prefix="/tasks", tags=["background-tasks"])
 
 # Health check endpoint
 @app.get("/health")

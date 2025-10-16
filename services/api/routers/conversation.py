@@ -12,6 +12,7 @@ from ..services.llm_service import LLMService
 from ..services.memory_service import MemoryService
 from ..services.emotion_service import EmotionService
 from ..services.safety_service import SafetyService
+from ..services.extraction_service import ExtractionService
 from ..core.database import get_db
 from ..core.config import settings
 
@@ -24,6 +25,7 @@ memory_service = MemoryService()
 safety_service = SafetyService()
 llm_service = LLMService()
 emotion_service = EmotionService()
+extraction_service = ExtractionService()
 
 @router.post("/start", response_model=ConversationResponse)
 async def start_conversation(
@@ -88,7 +90,8 @@ async def start_conversation(
             background_tasks.add_task(
                 extract_conversation_data,
                 conversation_id,
-                assistant_message.dict()
+                request.child,
+                [assistant_message.dict()]
             )
 
         # Store assistant message in semantic memory
@@ -127,12 +130,24 @@ async def continue_conversation(
 ):
     """Continue an existing conversation"""
     try:
-        # Verify conversation exists
+        # Verify conversation exists and get child profile
         conversation = await db.conversations.find_one({
             "conversation_id": request.conversation_id
         })
         if not conversation:
             raise HTTPException(status_code=404, detail="Conversation not found")
+
+        # Get child profile for safety checks
+        child_profile = await db.profiles.find_one({"child_id": conversation["child_id"]})
+        if not child_profile:
+            logger.warning(f"Child profile not found for {conversation['child_id']}, using defaults")
+            child_profile = {
+                "child_id": conversation["child_id"],
+                "age": 8,
+                "level": conversation["level"],
+                "sensitivity": "medium",
+                "language": conversation.get("language", "es")
+            }
 
         # Save user message
         user_message = Message(
@@ -156,11 +171,12 @@ async def continue_conversation(
             )
 
         # Generate response using LLM with enhanced context
-        reply_text = await generate_response(
-            conversation,
-            history,
-            request.user_sentence,
-            semantic_context
+        reply_text = await generate_enhanced_response(
+            child_id=conversation["child_id"],
+            topic=conversation["topic"],
+            level=conversation["level"],
+            user_input=request.user_sentence,
+            conversation_context=semantic_context
         )
 
         # CRITICAL SAFETY CHECK - Validate response before delivering to child
@@ -675,12 +691,68 @@ async def generate_safe_response(topic: str, child_profile: dict, language: str 
 
     return fallback.get(language, fallback["es"])
 
-async def extract_conversation_data(conversation_id: str, *messages):
+async def extract_conversation_data(conversation_id: str, child_id: str, messages: List[Dict[str, Any]]):
     """Background task to extract data for knowledge graph"""
     try:
-        # This would extract entities and relationships for the knowledge graph
         logger.info(f"Extracting data for conversation {conversation_id}")
-        # Implementation would go here
+
+        # Convert messages to Message objects
+        message_objects = []
+        for msg in messages:
+            message_obj = Message(**msg)
+            message_objects.append(message_obj)
+
+        # Process extraction using the extraction service
+        job_id = extraction_service.create_extraction_job(conversation_id, child_id)
+
+        # Process the extraction job
+        await extraction_service.process_extraction_job(
+            job_id=job_id,
+            conversation_id=conversation_id,
+            child_id=child_id,
+            conversation_messages=message_objects
+        )
+
+        logger.info(f"Completed extraction job {job_id} for conversation {conversation_id}")
 
     except Exception as e:
-        logger.error(f"Error in background extraction: {e}")
+        logger.error(f"Error in background extraction for conversation {conversation_id}: {e}")
+
+async def generate_enhanced_response(
+    child_id: str,
+    topic: str,
+    level: int,
+    user_input: str,
+    conversation_context: Optional[List[Dict[str, Any]]] = None
+) -> str:
+    """Generate enhanced LLM response using retrieved context"""
+    try:
+        # Build context-enhanced prompt
+        context_text = ""
+        if conversation_context:
+            context_text = "\n\nContexto relevante de conversaciones anteriores:\n"
+            for ctx in conversation_context[:3]:  # Limit to top 3 context items
+                context_text += f"- {ctx.get('clean_text', ctx.get('text', ''))}\n"
+
+        # Build main prompt
+        prompt = f"""
+{context_text}
+
+Conversación actual:
+Tema: {topic}
+Nivel: {level}
+Niño dice: "{user_input}"
+
+Responde de forma natural y apropiada para un niño de nivel {level}.
+Usa lenguaje simple y amigable. Sé empático y positivo.
+"""
+
+        # Generate response using LLM service
+        response = await llm_service.generate_response(prompt)
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Error generating enhanced response: {e}")
+        # Fallback to basic response generation
+        return await generate_starting_sentence(topic, level, "es")
