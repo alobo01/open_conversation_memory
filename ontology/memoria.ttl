@@ -1,0 +1,433 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix emo: <https://iiia.csic.es/kg/emorobcare#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# ==============================================================================
+# Memory System SHACL Shapes
+# ==============================================================================
+# This file defines validation constraints for the embedded-memory architecture
+# including memory entries, extracted entities, and inferred interests.
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Child Memory Shape
+# ------------------------------------------------------------------------------
+# Validates that children can have multiple memory entries and interests
+
+emo:ChildMemoryShape a sh:NodeShape ;
+    sh:targetClass emo:Child ;
+    rdfs:label "Child Memory Shape" ;
+    rdfs:comment "Validates memory-related properties of children" ;
+    
+    # Memory entries (optional, can have many)
+    sh:property [
+        sh:path emo:hasMemoryEntry ;
+        sh:node emo:MemoryEntryShape ;
+        sh:minCount 0 ;
+        rdfs:comment "Links child to their conversation memory entries" ;
+    ] ;
+    
+    # Inferred interests (optional, can have many)
+    sh:property [
+        sh:path emo:hasInterest ;
+        sh:class emo:Topic ;
+        sh:minCount 0 ;
+        rdfs:comment "Topics the child has shown interest in" ;
+    ] ;
+    
+    # Preferred activities (optional)
+    sh:property [
+        sh:path emo:prefersActivity ;
+        sh:class emo:ExtractedEntity ;
+        sh:minCount 0 ;
+        rdfs:comment "Activities the child has mentioned positively" ;
+    ] .
+
+
+# ------------------------------------------------------------------------------
+# Memory Entry Shape
+# ------------------------------------------------------------------------------
+# Validates individual memory entries with embeddings and metadata
+
+emo:MemoryEntryShape a sh:NodeShape ;
+    sh:targetClass emo:MemoryEntry ;
+    rdfs:label "Memory Entry Shape" ;
+    rdfs:comment "Validates conversation memory entries with embeddings" ;
+    
+    # Text content (required, exactly one)
+    sh:property [
+        sh:path emo:text ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:maxLength 1000 ;
+        rdfs:comment "The text content of the memory entry" ;
+    ] ;
+    
+    # Embedding vector (optional, stored as JSON string)
+    sh:property [
+        sh:path emo:embedding ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:pattern "^\\[[-0-9.,\\s]+\\]$" ;
+        rdfs:comment "Vector embedding as JSON array string (384 dimensions)" ;
+    ] ;
+    
+    # Timestamp (required, exactly one)
+    sh:property [
+        sh:path emo:timestamp ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        rdfs:comment "When this memory was created" ;
+    ] ;
+    
+    # Relevance score (optional, 0.0 to 1.0)
+    sh:property [
+        sh:path emo:relevanceScore ;
+        sh:datatype xsd:float ;
+        sh:minCount 0 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        rdfs:comment "Relevance score for context retrieval" ;
+    ] ;
+    
+    # Link to conversation (optional)
+    sh:property [
+        sh:path emo:fromConversation ;
+        sh:class emo:Conversation ;
+        sh:maxCount 1 ;
+        rdfs:comment "Original conversation this memory is from" ;
+    ] ;
+    
+    # Link to child (required, exactly one)
+    sh:property [
+        sh:path emo:belongsToChild ;
+        sh:class emo:Child ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        rdfs:comment "The child this memory belongs to" ;
+    ] .
+
+
+# ------------------------------------------------------------------------------
+# Extracted Entity Shape
+# ------------------------------------------------------------------------------
+# Validates entities extracted from conversations by the LLM
+
+emo:ExtractedEntityShape a sh:NodeShape ;
+    sh:targetClass emo:ExtractedEntity ;
+    rdfs:label "Extracted Entity Shape" ;
+    rdfs:comment "Validates entities extracted from conversations" ;
+    
+    # Entity type (required, exactly one, from enumeration)
+    sh:property [
+        sh:path emo:entityType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ("Activity" "Place" "Person" "Object" "Emotion") ;
+        rdfs:comment "Type of entity extracted" ;
+    ] ;
+    
+    # Entity value (required, exactly one)
+    sh:property [
+        sh:path emo:value ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:maxLength 200 ;
+        rdfs:comment "The actual entity text" ;
+    ] ;
+    
+    # Confidence score (required, 0.0 to 1.0)
+    sh:property [
+        sh:path emo:confidence ;
+        sh:datatype xsd:float ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        rdfs:comment "Confidence of the extraction (from LLM)" ;
+    ] ;
+    
+    # Extracted from conversation (optional)
+    sh:property [
+        sh:path emo:extractedFrom ;
+        sh:class emo:Conversation ;
+        sh:maxCount 1 ;
+        rdfs:comment "Source conversation for this entity" ;
+    ] ;
+    
+    # Language (optional, 'es' or 'en')
+    sh:property [
+        sh:path emo:language ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:in ("es" "en") ;
+        rdfs:comment "Language of the extracted entity" ;
+    ] .
+
+
+# ------------------------------------------------------------------------------
+# Relationship Shape
+# ------------------------------------------------------------------------------
+# Validates relationships between entities extracted from conversations
+
+emo:RelationshipShape a sh:NodeShape ;
+    sh:targetClass emo:Relationship ;
+    rdfs:label "Relationship Shape" ;
+    rdfs:comment "Validates relationships between entities" ;
+    
+    # Subject (required, exactly one)
+    sh:property [
+        sh:path emo:subject ;
+        sh:or (
+            [ sh:class emo:Child ]
+            [ sh:class emo:ExtractedEntity ]
+        ) ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        rdfs:comment "Subject of the relationship" ;
+    ] ;
+    
+    # Predicate (required, exactly one)
+    sh:property [
+        sh:path emo:predicate ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ("likes" "dislikes" "owns" "plays_with" "friends_with" "goes_to" "studies") ;
+        rdfs:comment "Type of relationship" ;
+    ] ;
+    
+    # Object (required, exactly one)
+    sh:property [
+        sh:path emo:object ;
+        sh:or (
+            [ sh:class emo:ExtractedEntity ]
+            [ sh:class emo:Topic ]
+        ) ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        rdfs:comment "Object of the relationship" ;
+    ] ;
+    
+    # Confidence (optional)
+    sh:property [
+        sh:path emo:confidence ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        rdfs:comment "Confidence of this relationship" ;
+    ] ;
+    
+    # Extracted from (optional)
+    sh:property [
+        sh:path emo:extractedFrom ;
+        sh:class emo:Conversation ;
+        sh:maxCount 1 ;
+        rdfs:comment "Source conversation" ;
+    ] .
+
+
+# ------------------------------------------------------------------------------
+# Emotion Instance Shape
+# ------------------------------------------------------------------------------
+# Validates emotion instances detected in conversations
+
+emo:EmotionInstanceShape a sh:NodeShape ;
+    sh:targetClass emo:EmotionInstance ;
+    rdfs:label "Emotion Instance Shape" ;
+    rdfs:comment "Validates detected emotions in conversations" ;
+    
+    # Emotion type (required)
+    sh:property [
+        sh:path emo:emotionType ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:in ("positive" "calm" "neutral" "worried" "excited" "sad" "angry") ;
+        rdfs:comment "Type of emotion detected" ;
+    ] ;
+    
+    # Intensity (required, 0.0 to 1.0)
+    sh:property [
+        sh:path emo:intensity ;
+        sh:datatype xsd:float ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        rdfs:comment "Intensity of the emotion" ;
+    ] ;
+    
+    # Detected in utterance (optional)
+    sh:property [
+        sh:path emo:detectedIn ;
+        sh:class emo:Utterance ;
+        sh:maxCount 1 ;
+        rdfs:comment "Utterance where emotion was detected" ;
+    ] ;
+    
+    # Timestamp (required)
+    sh:property [
+        sh:path emo:timestamp ;
+        sh:datatype xsd:dateTime ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        rdfs:comment "When the emotion was detected" ;
+    ] .
+
+
+# ------------------------------------------------------------------------------
+# Interest Shape
+# ------------------------------------------------------------------------------
+# Validates inferred child interests (derived from conversations)
+
+emo:InterestShape a sh:NodeShape ;
+    sh:targetClass emo:Interest ;
+    rdfs:label "Interest Shape" ;
+    rdfs:comment "Validates inferred child interests" ;
+    
+    # Topic (required)
+    sh:property [
+        sh:path emo:inTopic ;
+        sh:class emo:Topic ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        rdfs:comment "Topic of interest" ;
+    ] ;
+    
+    # Strength (optional, 0.0 to 1.0)
+    sh:property [
+        sh:path emo:strength ;
+        sh:datatype xsd:float ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        rdfs:comment "Strength of interest (inferred from frequency/sentiment)" ;
+    ] ;
+    
+    # First mentioned (optional)
+    sh:property [
+        sh:path emo:firstMentioned ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        rdfs:comment "When first detected" ;
+    ] ;
+    
+    # Last mentioned (optional)
+    sh:property [
+        sh:path emo:lastMentioned ;
+        sh:datatype xsd:dateTime ;
+        sh:maxCount 1 ;
+        rdfs:comment "When last detected" ;
+    ] ;
+    
+    # Mention count (optional)
+    sh:property [
+        sh:path emo:mentionCount ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
+        rdfs:comment "Number of times mentioned" ;
+    ] .
+
+
+# ==============================================================================
+# Property Definitions
+# ==============================================================================
+
+# Memory-related properties
+emo:hasMemoryEntry a owl:ObjectProperty ;
+    rdfs:domain emo:Child ;
+    rdfs:range emo:MemoryEntry ;
+    rdfs:label "has memory entry" .
+
+emo:embedding a owl:DatatypeProperty ;
+    rdfs:domain emo:MemoryEntry ;
+    rdfs:range xsd:string ;
+    rdfs:label "embedding vector" .
+
+emo:relevanceScore a owl:DatatypeProperty ;
+    rdfs:range xsd:float ;
+    rdfs:label "relevance score" .
+
+emo:belongsToChild a owl:ObjectProperty ;
+    rdfs:domain emo:MemoryEntry ;
+    rdfs:range emo:Child ;
+    rdfs:label "belongs to child" .
+
+# Entity extraction properties
+emo:entityType a owl:DatatypeProperty ;
+    rdfs:domain emo:ExtractedEntity ;
+    rdfs:range xsd:string ;
+    rdfs:label "entity type" .
+
+emo:value a owl:DatatypeProperty ;
+    rdfs:range xsd:string ;
+    rdfs:label "value" .
+
+emo:extractedFrom a owl:ObjectProperty ;
+    rdfs:range emo:Conversation ;
+    rdfs:label "extracted from" .
+
+# Relationship properties
+emo:subject a owl:ObjectProperty ;
+    rdfs:domain emo:Relationship ;
+    rdfs:label "subject" .
+
+emo:predicate a owl:DatatypeProperty ;
+    rdfs:domain emo:Relationship ;
+    rdfs:range xsd:string ;
+    rdfs:label "predicate" .
+
+emo:object a owl:ObjectProperty ;
+    rdfs:domain emo:Relationship ;
+    rdfs:label "object" .
+
+# Interest properties
+emo:hasInterest a owl:ObjectProperty ;
+    rdfs:domain emo:Child ;
+    rdfs:range emo:Topic ;
+    rdfs:label "has interest" .
+
+emo:prefersActivity a owl:ObjectProperty ;
+    rdfs:domain emo:Child ;
+    rdfs:range emo:ExtractedEntity ;
+    rdfs:label "prefers activity" .
+
+emo:inTopic a owl:ObjectProperty ;
+    rdfs:domain emo:Interest ;
+    rdfs:range emo:Topic ;
+    rdfs:label "in topic" .
+
+emo:strength a owl:DatatypeProperty ;
+    rdfs:domain emo:Interest ;
+    rdfs:range xsd:float ;
+    rdfs:label "interest strength" .
+
+emo:mentionCount a owl:DatatypeProperty ;
+    rdfs:range xsd:integer ;
+    rdfs:label "mention count" .
+
+# Emotion properties
+emo:emotionType a owl:DatatypeProperty ;
+    rdfs:domain emo:EmotionInstance ;
+    rdfs:range xsd:string ;
+    rdfs:label "emotion type" .
+
+emo:intensity a owl:DatatypeProperty ;
+    rdfs:domain emo:EmotionInstance ;
+    rdfs:range xsd:float ;
+    rdfs:label "intensity" .
+
+emo:detectedIn a owl:ObjectProperty ;
+    rdfs:domain emo:EmotionInstance ;
+    rdfs:range emo:Utterance ;
+    rdfs:label "detected in" .

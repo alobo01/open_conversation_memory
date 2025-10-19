@@ -14,6 +14,7 @@ class MemoryService:
 
     def __init__(self):
         self.embedding_model = None
+        self.qdrant_client = None
         self.collection_name = settings.qdrant_collection_name
         self._init_embedding_model()
 
@@ -38,6 +39,9 @@ class MemoryService:
             if not qdrant:
                 logger.warning("Qdrant client not available for collection initialization")
                 return
+
+            # Store the client for consistent use
+            self.qdrant_client = qdrant
 
             # Check if collection exists
             collections = qdrant.get_collections().collections
@@ -86,8 +90,7 @@ class MemoryService:
                 logger.debug("Semantic search disabled, skipping storage")
                 return False
 
-            qdrant = get_qdrant()
-            if not qdrant:
+            if not self.qdrant_client:
                 logger.warning("Qdrant client not available")
                 return False
 
@@ -131,7 +134,7 @@ class MemoryService:
                 batch_size = settings.embedding_batch_size
                 for i in range(0, len(points), batch_size):
                     batch = points[i:i + batch_size]
-                    qdrant.upsert(
+                    self.qdrant_client.upsert(
                         collection_name=self.collection_name,
                         points=batch
                     )
@@ -188,8 +191,7 @@ class MemoryService:
                 logger.debug("Semantic search disabled or model not available")
                 return []
 
-            qdrant = get_qdrant()
-            if not qdrant:
+            if not self.qdrant_client:
                 logger.warning("Qdrant client not available")
                 return []
 
@@ -224,7 +226,7 @@ class MemoryService:
             search_limit = limit or settings.semantic_search_limit
 
             # Search with score threshold
-            results = qdrant.search(
+            results = self.qdrant_client.search(
                 collection_name=self.collection_name,
                 query_vector=query_embedding,
                 query_filter=search_filter,
@@ -361,8 +363,7 @@ class MemoryService:
             if not settings.enable_semantic_search:
                 return {"status": "disabled"}
 
-            qdrant = get_qdrant()
-            if not qdrant:
+            if not self.qdrant_client:
                 return {"status": "unavailable"}
 
             # Build filter
@@ -377,7 +378,7 @@ class MemoryService:
             search_filter = Filter(must=filter_conditions)
 
             # Get count and sample results
-            results = qdrant.scroll(
+            results = self.qdrant_client.scroll(
                 collection_name=self.collection_name,
                 scroll_filter=search_filter,
                 limit=100,
@@ -516,8 +517,7 @@ class MemoryService:
     async def delete_conversation_memory(self, conversation_id: str) -> bool:
         """Delete conversation from vector memory"""
         try:
-            qdrant = get_qdrant()
-            if not qdrant:
+            if not self.qdrant_client:
                 return False
 
             # Delete points for this conversation
@@ -525,7 +525,7 @@ class MemoryService:
                 must=[FieldCondition(key="conversation_id", match=MatchValue(value=conversation_id))]
             )
 
-            qdrant.delete(
+            self.qdrant_client.delete(
                 collection_name=self.collection_name,
                 points_selector=filter_condition
             )
@@ -540,12 +540,11 @@ class MemoryService:
     async def get_memory_status(self) -> Dict[str, Any]:
         """Get memory service status"""
         try:
-            qdrant = get_qdrant()
-            if not qdrant:
+            if not self.qdrant_client:
                 return {"status": "unavailable", "reason": "Qdrant client not available"}
 
             # Get collection info
-            collection_info = qdrant.get_collection(self.collection_name)
+            collection_info = self.qdrant_client.get_collection(self.collection_name)
 
             return {
                 "status": "available",

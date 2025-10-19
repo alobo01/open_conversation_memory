@@ -12,7 +12,7 @@ from ..models.extraction_models import (
 )
 from ..models.schemas import Message
 from ..services.llm_service import LLMService
-from ..routers.knowledge_graph import insert_to_kg, validate_shacl
+from ..routers.knowledge_graph import insert_knowledge, validate_knowledge_graph
 from ..core.config import settings
 from ..core.database import get_db
 
@@ -343,7 +343,7 @@ class ExtractionService:
             sparql_insert = self._convert_triples_to_sparql(triples)
 
             # Validate using KG service
-            validation_result = await validate_shacl({"data": sparql_insert})
+            validation_result = await validate_knowledge_graph({"data": sparql_insert})
 
             return ValidationReport(
                 valid=validation_result.get("valid", False),
@@ -373,13 +373,15 @@ class ExtractionService:
                     f"<{triple.subject}> <{triple.predicate}> {triple.object} ."
                 )
 
+        separator = " .\n            "
+        joined_statements = separator.join(insert_statements)
         return f"""
         PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
         PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
         PREFIX emo: <https://emorobcare.org/ontology#>
 
         INSERT DATA {{
-            { " .\n            ".join(insert_statements) }
+            { joined_statements }
         }}
         """
 
@@ -420,7 +422,7 @@ class ExtractionService:
             # If validation passes, insert into knowledge graph
             if validation_report.valid:
                 sparql_insert = self._convert_triples_to_sparql(triples)
-                await insert_to_kg({"sparql_update": sparql_insert})
+                await insert_knowledge({"sparql_update": sparql_insert})
                 logger.info(f"Successfully inserted {len(triples)} triples to KG")
             else:
                 logger.warning(f"SHACL validation failed for conversation {conversation_id}")

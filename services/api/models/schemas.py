@@ -135,3 +135,18 @@ class SystemInfo(BaseModel):
     memory_usage: Dict[str, float]
     active_conversations: int
     total_messages: int
+
+# Safety
+class SafetyViolation(BaseModel):
+    type: str
+    severity: Literal["low", "medium", "high"]
+    description: str
+    detected_content: Optional[str] = None
+    suggestion: Optional[str] = None
+
+class SafetyCheckResult(BaseModel):
+    is_safe: bool
+    violations: List[SafetyViolation] = []
+    confidence: float
+    processed_content: Optional[str] = None
+    check_time: datetime = Field(default_factory=datetime.now)

@@ -8,12 +8,12 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from .routers import conversation, knowledge_graph, asr, background_tasks
-from .services.llm_service import LLMService
-from .services.memory_service import MemoryService
-from .services.emotion_service import EmotionService
-from .core.config import settings
-from .core.database import init_db
+from routers import conversation, knowledge_graph, asr, background_tasks
+from services.llm_service import LLMService
+from services.memory_service import MemoryService
+from services.emotion_service import EmotionService
+from core.config import settings
+from core.database import init_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

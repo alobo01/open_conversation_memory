@@ -53,6 +53,41 @@ services:
       timeout: 10s
       retries: 5
 
+  # LLM Service (vLLM - Separate GPU Service)
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: emorobcare-vllm
+    ports:
+      - "8001:8000"
+    environment:
+      # vLLM Configuration
+      VLLM_HOST: "0.0.0.0"
+      VLLM_PORT: "8000"
+      VLLM_TRUST_REMOTE_CODE: "true"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: 
+      - "--model"
+      - "Qwen/Qwen2-7B-Instruct"
+      - "--gpu-memory-utilization"
+      - "0.6"
+      - "--max-model-len"
+      - "4096"
+      - "--dtype"
+      - "auto"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 60s
+      timeout: 30s
+      retries: 10
+      start_period: 120s
+
   # Application Services
   api:
     build:
@@ -62,13 +97,24 @@ services:
     ports:
       - "8000:8000"
     environment:
+      # Database connections
       MONGODB_URI: mongodb://mongodb:27017
       QDRANT_URL: http://qdrant:6333
       FUSEKI_URL: http://fuseki:3030
+      # vLLM API connection (CRITICAL: HTTP client, not import)
+      VLLM_API_URL: http://vllm:8000
+      LLM_MODEL: Qwen/Qwen2-7B-Instruct
+      # Configuration
       OFFLINE_MODE: "true"
       DEFAULT_LANG: "es"
       ASR_GPU: "false"
+      # Memory configuration
+      EMBEDDING_ENABLE_SEMANTIC_SEARCH: "true"
+      SEMANTIC_SEARCH_LIMIT: "5"
+      CONTEXT_RETRIEVAL_LIMIT: "3"
     depends_on:
+      vllm:
+        condition: service_healthy
       mongodb:
         condition: service_healthy
       qdrant:
@@ -88,13 +134,13 @@ services:
       dockerfile: services/asr/Dockerfile
     container_name: emorobcare-asr
     ports:
-      - "8001:8001"
+      - "5000:5000"
     environment:
       DEFAULT_LANGUAGE: "es"
       GPU_ENABLED: "false"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -108,7 +154,7 @@ services:
       - "81:80"
     environment:
       API_URL: http://localhost:8000
-      ASR_URL: http://localhost:8001
+      ASR_URL: http://localhost:5000
     depends_on:
       api:
         condition: service_healthy

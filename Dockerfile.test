@@ -1,0 +1,35 @@
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy test requirements first for better caching
+COPY requirements-test.txt .
+
+# Install Python test dependencies
+RUN pip install --no-cache-dir -r requirements-test.txt
+
+# Copy the entire application
+COPY . .
+
+# Set Python path
+ENV PYTHONPATH=/app
+
+# Create tests directory if it doesn't exist
+RUN mkdir -p tests
+
+# Install the application in development mode
+RUN pip install -e .
+
+# Expose port for health checks
+EXPOSE 8000
+
+# Default command to run tests
+CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]

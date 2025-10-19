@@ -6,7 +6,7 @@ from enum import Enum
 import json
 from datetime import datetime
 
-from ..models.schemas import EmotionType, Language, ConversationLevel
+from ..models.schemas import EmotionType, Language, ConversationLevel, SafetyViolation as SafetyViolationSchema, SafetyCheckResult as SafetyCheckResultSchema
 
 logger = logging.getLogger(__name__)
 
@@ -20,22 +20,27 @@ class SafetyViolationType(str, Enum):
     LANGUAGE_COMPLEXITY = "language_complexity"
     BLOCKED_TOPIC = "blocked_topic"
 
-@dataclass
-class SafetyViolation:
-    violation_type: SafetyViolationType
-    severity: str  # "low", "medium", "high", "critical"
-    description: str
-    detected_content: str
-    recommendation: str
-    timestamp: datetime
 
-@dataclass
-class SafetyCheckResult:
-    is_safe: bool
-    violations: List[SafetyViolation]
-    filtered_content: Optional[str] = None
-    confidence: float = 1.0
-    metadata: Dict[str, Any] = None
+def _create_violation(
+    violation_type: SafetyViolationType,
+    severity: str,
+    description: str,
+    detected_content: str,
+    recommendation: str = None,
+    suggestion: str = None,
+    timestamp=None
+) -> SafetyViolationSchema:
+    """Helper to create SafetyViolation with schema format"""
+    # Use suggestion if provided, otherwise use recommendation
+    final_suggestion = suggestion or recommendation
+
+    return SafetyViolationSchema(
+        type=str(violation_type),
+        severity=severity if severity in ["low", "medium", "high"] else "medium",
+        description=description,
+        detected_content=detected_content,
+        suggestion=final_suggestion
+    )
 
 class SafetyService:
     """Comprehensive safety service for child protection in EmoRobCare"""
@@ -64,7 +69,8 @@ class SafetyService:
                 r"\b(estúpido|idiota|tonto|imbecil)\b",
                 r"\b(culo|cagar|mierda|joder|puta)\b",
                 r"\b(arma|pistola|cuchillo|bomba|explosivo)\b",
-                r"\b(enfermo|dolor|sufrir|tortura)\b"
+                r"\b(enfermo|dolor|sufrir|tortura)\b",
+                r"\b(terrible|horrible|aterrador|espantoso)\b"
             ],
             "en": [
                 r"\b(kill|death|die|murder|destroy)\b",
@@ -74,7 +80,8 @@ class SafetyService:
                 r"\b(stupid|idiot|dumb|imbecile)\b",
                 r"\b(ass|shit|fuck|damn|bitch)\b",
                 r"\b(weapon|gun|knife|bomb|explosive)\b",
-                r"\b(sick|pain|suffering|torture)\b"
+                r"\b(sick|pain|suffering|torture)\b",
+                r"\b(terrible|horrible|awful|dreadful)\b"
             ]
         }
 
@@ -215,7 +222,7 @@ class SafetyService:
         child_profile: Dict[str, Any],
         context: Dict[str, Any] = None,
         language: str = "es"
-    ) -> SafetyCheckResult:
+    ) -> SafetyCheckResultSchema:
         """
         Perform comprehensive safety check on content
 
@@ -226,8 +233,12 @@ class SafetyService:
             language: Content language
 
         Returns:
-            SafetyCheckResult with violations and filtered content
+            SafetyCheckResultSchema with violations and processed content
         """
+        # Validate input
+        if content is None:
+            raise TypeError("Content cannot be None")
+        
         violations = []
         filtered_content = content
 
@@ -293,32 +304,31 @@ class SafetyService:
             # Log safety check
             await self._log_safety_check(content, violations, child_profile, is_safe)
 
-            return SafetyCheckResult(
+            # Calculate confidence based on violations
+            # More violations = lower confidence
+            confidence_penalty = len(violations) * 0.3  # 0.3 per violation
+            confidence = max(0.1, 1.0 - confidence_penalty)  # Minimum 0.1 confidence
+            
+            return SafetyCheckResultSchema(
                 is_safe=is_safe,
                 violations=violations,
-                filtered_content=filtered_content if not is_safe else content,
-                confidence=1.0 - (len(violations) * 0.1),
-                metadata={
-                    "child_age": child_profile.get("age", 8),
-                    "language": language,
-                    "check_timestamp": datetime.now().isoformat()
-                }
+                processed_content=filtered_content if not is_safe else content,
+                confidence=confidence
             )
 
         except Exception as e:
             logger.error(f"Error in safety check: {e}")
             # Default to safe if error occurs
-            return SafetyCheckResult(
+            return SafetyCheckResultSchema(
                 is_safe=True,
                 violations=[],
-                filtered_content=content,
-                confidence=0.5,
-                metadata={"error": str(e)}
+                processed_content=content,
+                confidence=0.5
             )
 
     async def _check_inappropriate_content(
         self, content: str, language: str, child_profile: Dict[str, Any]
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check for inappropriate content patterns"""
         violations = []
         patterns = self.inappropriate_patterns.get(language, self.inappropriate_patterns["es"])
@@ -329,20 +339,19 @@ class SafetyService:
                 severity = "high" if any(word in match.group().lower()
                                        for word in ["matar", "kill", "muerte", "death"]) else "medium"
 
-                violations.append(SafetyViolation(
-                    violation_type=SafetyViolationType.INAPPROPRIATE_CONTENT,
-                    severity=severity,
+                violations.append(SafetyViolationSchema(
+                    type=str(SafetyViolationType.INAPPROPRIATE_CONTENT),
+                    severity=severity if severity in ["low", "medium", "high"] else "medium",
                     description=f"Inappropriate content detected: {match.group()}",
                     detected_content=match.group(),
-                    recommendation="Replace with positive alternative",
-                    timestamp=datetime.now()
+                    suggestion="Replace with positive alternative"
                 ))
 
         return violations
 
     async def _check_scary_topics(
         self, content: str, language: str, child_profile: Dict[str, Any]
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check for scary topics"""
         violations = []
         scary_topics = self.scary_topics.get(language, self.scary_topics["es"])
@@ -352,7 +361,7 @@ class SafetyService:
         if age <= 8:
             for topic in scary_topics:
                 if topic.lower() in content.lower():
-                    violations.append(SafetyViolation(
+                    violations.append(_create_violation(
                         violation_type=SafetyViolationType.SCARY_TOPIC,
                         severity="high" if age <= 6 else "medium",
                         description=f"Scary topic detected: {topic}",
@@ -365,7 +374,7 @@ class SafetyService:
 
     async def _check_violence_content(
         self, content: str, language: str, child_profile: Dict[str, Any]
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check for violent content"""
         violations = []
         patterns = self.violence_patterns.get(language, self.violence_patterns["es"])
@@ -373,7 +382,7 @@ class SafetyService:
         for pattern in patterns:
             matches = re.finditer(pattern, content, re.IGNORECASE)
             for match in matches:
-                violations.append(SafetyViolation(
+                violations.append(_create_violation(
                     violation_type=SafetyViolationType.VIOLENCE,
                     severity="high",
                     description=f"Violent content detected: {match.group()}",
@@ -386,7 +395,7 @@ class SafetyService:
 
     async def _check_adult_topics(
         self, content: str, language: str, child_profile: Dict[str, Any]
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check for adult topics"""
         violations = []
         adult_topics = self.adult_topics.get(language, self.adult_topics["es"])
@@ -396,7 +405,7 @@ class SafetyService:
         if age < 13:
             for topic in adult_topics:
                 if topic.lower() in content.lower():
-                    violations.append(SafetyViolation(
+                    violations.append(_create_violation(
                         violation_type=SafetyViolationType.ADULT_TOPIC,
                         severity="high" if age <= 10 else "medium",
                         description=f"Adult topic detected: {topic}",
@@ -407,16 +416,16 @@ class SafetyService:
 
         return violations
 
-    async def _check_personal_info(self, content: str) -> List[SafetyViolation]:
+    async def _check_personal_info(self, content: str) -> List[SafetyViolationSchema]:
         """Check for personal information that shouldn't be shared"""
         violations = []
 
         for pattern in self.personal_info_patterns:
             matches = re.finditer(pattern, content)
             for match in matches:
-                violations.append(SafetyViolation(
+                violations.append(_create_violation(
                     violation_type=SafetyViolationType.PERSONAL_INFO,
-                    severity="critical",
+                    severity="high",
                     description=f"Personal information detected: {match.group()[:10]}...",
                     detected_content=match.group()[:10] + "...",
                     recommendation="Remove personal information",
@@ -428,7 +437,7 @@ class SafetyService:
     async def _check_blocked_topics(
         self, content: str, child_profile: Dict[str, Any],
         context: Dict[str, Any], language: str
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check for topics specifically blocked for this child"""
         violations = []
         blocked_topics = child_profile.get("blocked_topics", [])
@@ -438,7 +447,7 @@ class SafetyService:
 
         for topic in all_blocked:
             if topic.lower() in content.lower():
-                violations.append(SafetyViolation(
+                violations.append(_create_violation(
                     violation_type=SafetyViolationType.BLOCKED_TOPIC,
                     severity="high",
                     description=f"Blocked topic detected: {topic}",
@@ -451,7 +460,7 @@ class SafetyService:
 
     async def _check_language_complexity(
         self, content: str, child_profile: Dict[str, Any], language: str
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check if language complexity is appropriate for child's age"""
         violations = []
         age = child_profile.get("age", 8)
@@ -475,7 +484,7 @@ class SafetyService:
             for age_range, max_length in max_length_by_age.items():
                 if age_range[0] <= age <= age_range[1]:
                     if avg_sentence_length > max_length:
-                        violations.append(SafetyViolation(
+                        violations.append(_create_violation(
                             violation_type=SafetyViolationType.LANGUAGE_COMPLEXITY,
                             severity="medium",
                             description=f"Language too complex: avg {avg_sentence_length:.1f} words per sentence",
@@ -490,7 +499,7 @@ class SafetyService:
     async def _check_emotional_appropriateness(
         self, content: str, child_profile: Dict[str, Any],
         context: Dict[str, Any], language: str
-    ) -> List[SafetyViolation]:
+    ) -> List[SafetyViolationSchema]:
         """Check if emotional tone is appropriate"""
         violations = []
         age = child_profile.get("age", 8)
@@ -502,7 +511,7 @@ class SafetyService:
 
         # Check emotional balance
         if sensitivity == "high" and negative_words > 1:
-            violations.append(SafetyViolation(
+            violations.append(_create_violation(
                 violation_type=SafetyViolationType.EMOTIONAL_INAPPROPRIATE,
                 severity="medium",
                 description="Too many negative words for sensitive child",
@@ -513,7 +522,7 @@ class SafetyService:
 
         # Check for overstimulation in younger children
         if age <= 7 and exciting_words > 3:
-            violations.append(SafetyViolation(
+            violations.append(_create_violation(
                 violation_type=SafetyViolationType.EMOTIONAL_INAPPROPRIATE,
                 severity="low",
                 description="Too much excitement for young child",
@@ -525,7 +534,7 @@ class SafetyService:
         return violations
 
     async def _filter_content(
-        self, content: str, violations: List[SafetyViolation], language: str
+        self, content: str, violations: List[SafetyViolationSchema], language: str
     ) -> str:
         """Filter content to make it safe"""
         filtered = content
@@ -533,23 +542,24 @@ class SafetyService:
 
         # Replace detected inappropriate content
         for violation in violations:
-            if violation.violation_type in [
+            if violation.type in [
                 SafetyViolationType.INAPPROPRIATE_CONTENT,
                 SafetyViolationType.VIOLENCE,
                 SafetyViolationType.SCARY_TOPIC
             ]:
-                detected = violation.detected_content.lower()
-                if detected in replacements:
-                    filtered = re.sub(
-                        re.escape(detected),
-                        replacements[detected],
-                        filtered,
-                        flags=re.IGNORECASE
-                    )
+                if violation.detected_content:
+                    detected = violation.detected_content.lower()
+                    if detected in replacements:
+                        filtered = re.sub(
+                            re.escape(detected),
+                            replacements[detected],
+                            filtered,
+                            flags=re.IGNORECASE
+                        )
 
         # Remove personal information
         for violation in violations:
-            if violation.violation_type == SafetyViolationType.PERSONAL_INFO:
+            if str(violation.type) == "personal_info" or str(violation.type) == "SafetyViolationType.PERSONAL_INFO":
                 filtered = re.sub(
                     r'\b\d{8,}\b|\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
                     '[información personal]',
@@ -559,7 +569,7 @@ class SafetyService:
         return filtered
 
     async def _log_safety_check(
-        self, content: str, violations: List[SafetyViolation],
+        self, content: str, violations: List[SafetyViolationSchema],
         child_profile: Dict[str, Any], is_safe: bool
     ):
         """Log safety check for monitoring"""
@@ -570,7 +580,7 @@ class SafetyService:
             "content_length": len(content),
             "is_safe": is_safe,
             "violation_count": len(violations),
-            "violation_types": [v.violation_type.value for v in violations],
+            "violation_types": [v.type for v in violations],
             "max_severity": max([v.severity for v in violations], default="none")
         }
 
@@ -606,7 +616,7 @@ class SafetyService:
         import random
         return random.choice(fallback_topics.get(language, fallback_topics["es"]))
 
-    async def validate_child_profile_safety(self, child_profile: Dict[str, Any]) -> SafetyCheckResult:
+    async def validate_child_profile_safety(self, child_profile: Dict[str, Any]) -> SafetyCheckResultSchema:
         """Validate that child profile has appropriate safety settings"""
         violations = []
 
@@ -620,7 +630,7 @@ class SafetyService:
             missing_blocks = [topic for topic in recommended_blocklist if topic not in blocked_topics]
 
             if missing_blocks:
-                violations.append(SafetyViolation(
+                violations.append(_create_violation(
                     violation_type=SafetyViolationType.BLOCKED_TOPIC,
                     severity="medium",
                     description=f"Missing recommended blocked topics: {missing_blocks}",
@@ -629,10 +639,9 @@ class SafetyService:
                     timestamp=datetime.now()
                 ))
 
-        return SafetyCheckResult(
+        return SafetyCheckResultSchema(
             is_safe=len(violations) == 0,
-            violations=violations,
-            metadata={"profile_validated": True}
+            violations=violations
         )
 
     async def get_safety_statistics(self) -> Dict[str, Any]:
@@ -660,6 +669,30 @@ class SafetyService:
 
     def get_service_status(self) -> Dict[str, Any]:
         """Get safety service status"""
+        # Count detection rules
+        detection_rules_count = 0
+        for lang_patterns in self.inappropriate_patterns.values():
+            detection_rules_count += len(lang_patterns)
+        for lang_patterns in self.scary_topics.values():
+            detection_rules_count += len(lang_patterns)
+        for lang_patterns in self.violence_patterns.values():
+            detection_rules_count += len(lang_patterns)
+        for lang_patterns in self.adult_topics.values():
+            detection_rules_count += len(lang_patterns)
+        detection_rules_count += len(self.personal_info_patterns)
+        
+        # Count blocked patterns
+        blocked_patterns_count = 0
+        for lang_patterns in self.inappropriate_patterns.values():
+            blocked_patterns_count += len(lang_patterns)
+        for lang_patterns in self.scary_topics.values():
+            blocked_patterns_count += len(lang_patterns)
+        for lang_patterns in self.violence_patterns.values():
+            blocked_patterns_count += len(lang_patterns)
+        for lang_patterns in self.adult_topics.values():
+            blocked_patterns_count += len(lang_patterns)
+        blocked_patterns_count += len(self.personal_info_patterns)
+        
         return {
             "status": "active",
             "features": {
@@ -675,5 +708,9 @@ class SafetyService:
             "supported_languages": list(self.inappropriate_patterns.keys()),
             "age_ranges": ["5-7", "8-10", "11-13"],
             "violation_types": [vt.value for vt in SafetyViolationType],
-            "safety_checks_performed": len(self.safety_log)
+            "safety_checks_performed": len(self.safety_log),
+            "detection_rules_count": detection_rules_count,
+            "blocked_patterns_count": blocked_patterns_count,
+            "age_restrictions_enabled": True,
+            "personal_info_detection_enabled": True
         }

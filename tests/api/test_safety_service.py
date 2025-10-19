@@ -3,9 +3,11 @@ from datetime import datetime
 from unittest.mock import Mock, AsyncMock
 
 from services.api.services.safety_service import (
-    SafetyService, SafetyViolationType, SafetyViolation, SafetyCheckResult
+    SafetyService, SafetyViolationType
 )
-from services.api.models.schemas import EmotionType, Language
+from services.api.models.schemas import (
+    EmotionType, Language, SafetyViolation, SafetyCheckResult
+)
 
 
 class TestSafetyService:

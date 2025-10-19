@@ -18,16 +18,17 @@ class EmotionService:
         """Initialize emotion detection patterns"""
         return {
             "positive": [
+                r"\*\*.*?\*\*",  # Bold text - check first
                 r"¡(qué|quién|cuándo|dónde|cómo) (bien|genial|fantástico|increíble|perfecto|maravilloso)",
                 r"(me encanta|me gusta|amo|adoro|quiero)",
-                r"(feliz|alegre contento|emocionado|entusiasmado)",
+                r"(feliz|alegre|contento|emocionado|entusiasmado)",
                 r"(siempre|todo|mejor|favorito)"
             ],
             "calm": [
+                r"__(.*?)__",  # Whisper markup - check first
                 r"(tranquilo|calma|respira|paciencia|lento)",
                 r"(está bien|no te preocupes|todo está bien)",
-                r"(relájate|descansa|paz|serenidad)",
-                r"__(.*?)__"  # Whisper markup
+                r"(relájate|descansa|paz|serenidad)"
             ],
             "neutral": [
                 r"(entiendo|comprendo|vale|ok|de acuerdo)",
@@ -66,7 +67,7 @@ class EmotionService:
                 "positive": [
                     "**Great!** {}",
                     "**Wonderful!** {}",
-                    **Fantastic!** {}",
+                    "**Fantastic!** {}",
                     "**Perfect!** {}",
                     "**Amazing!** {}"
                 ],
@@ -89,16 +90,36 @@ class EmotionService:
 
     def detect_emotion(self, text: str, language: str = "es") -> EmotionType:
         """Detect emotion in text"""
-        text_lower = text.lower()
+        if text is None:
+            raise AttributeError("Text cannot be None")
+        if not isinstance(text, str):
+            return EmotionType.NEUTRAL
 
-        # Check for emotion patterns
-        for emotion, patterns in self.emotion_patterns.items():
-            for pattern in patterns:
+        text_lower = text.lower().strip()
+        
+        # Handle empty or whitespace-only text
+        if not text_lower:
+            return EmotionType.NEUTRAL
+
+        # Check for calm patterns first (whisper markup takes priority)
+        calm_patterns = self.emotion_patterns.get("calm", [])
+        for pattern in calm_patterns:
+            try:
                 if re.search(pattern, text_lower, re.IGNORECASE):
-                    if emotion == "positive":
-                        return EmotionType.POSITIVE
-                    elif emotion == "calm":
-                        return EmotionType.CALM
+                    return EmotionType.CALM
+            except re.error:
+                # Skip invalid regex patterns
+                continue
+
+        # Then check for positive patterns
+        positive_patterns = self.emotion_patterns.get("positive", [])
+        for pattern in positive_patterns:
+            try:
+                if re.search(pattern, text_lower, re.IGNORECASE):
+                    return EmotionType.POSITIVE
+            except re.error:
+                # Skip invalid regex patterns
+                continue
 
         return EmotionType.NEUTRAL
 
@@ -163,7 +184,7 @@ class EmotionService:
         emotion: EmotionType,
         language: str = "es",
         child_age: int = 8,
-        context: Dict[str, Any] = None
+        context: Optional[Dict[str, Any]] = None
     ) -> str:
         """Generate an emotionally appropriate response"""
         try:
@@ -197,13 +218,27 @@ class EmotionService:
     ) -> Dict[str, Any]:
         """Analyze emotions throughout a conversation"""
         try:
+            # Validate input
+            if not messages or not isinstance(messages, list):
+                return {}
+
+            # Check if all messages have valid structure
+            if not all(isinstance(msg, dict) and "role" in msg and "text" in msg for msg in messages):
+                return {}
+
             emotion_counts = {emotion.value: 0 for emotion in EmotionType}
             emotion_sequence = []
             language = "es"  # Default
 
-            for message in messages:
-                if message.get("role") == "assistant":
-                    text = message.get("text", "")
+            # Only process assistant messages
+            assistant_messages = [
+                msg for msg in messages 
+                if isinstance(msg, dict) and msg.get("role") == "assistant"
+            ]
+
+            for message in assistant_messages:
+                text = message.get("text", "")
+                if text and text.strip():  # Only process non-empty text
                     emotion = self.detect_emotion(text, language)
                     emotion_counts[emotion.value] += 1
                     emotion_sequence.append({
@@ -219,8 +254,11 @@ class EmotionService:
                 for emotion, count in emotion_counts.items()
             }
 
-            # Determine dominant emotion
-            dominant_emotion = max(emotion_counts.items(), key=lambda x: x[1])[0]
+            # Determine dominant emotion (handle case where no messages found)
+            if total_messages == 0:
+                dominant_emotion = "neutral"
+            else:
+                dominant_emotion = max(emotion_counts.items(), key=lambda x: x[1])[0]
 
             # Analyze emotion changes
             emotion_changes = self._analyze_emotion_changes(emotion_sequence)
